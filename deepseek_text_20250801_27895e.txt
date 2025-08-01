@@ -1,0 +1,6 @@
+src/
+├── __init__.py
+├── app.py
+├── extensions.py
+├── models.py
+└── routes.py
