@@ -1,0 +1,283 @@
+
+1. تعديلات في ملفات الباك إند (routes.py أو app.py):
+أ. إضافة وظيفة إرسال الرسائل:
+python
+@app.route('/send_message', methods=['POST'])
+@login_required
+def send_message():
+    sender_id = current_user.id
+    receiver_id = request.form.get('receiver_id')
+    product_id = request.form.get('product_id')
+    content = request.form.get('content')
+    
+    new_message = ChatMessage(
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+        product_id=product_id,
+        content=content,
+        timestamp=datetime.utcnow()
+    )
+    
+    db.session.add(new_message)
+    db.session.commit()
+    
+    return jsonify({'success': True})
+ب. وظيفة استرجاع الرسائل:
+python
+@app.route('/get_messages/<int:product_id>')
+@login_required
+def get_messages(product_id):
+    messages = ChatMessage.query.filter_by(product_id=product_id).order_by(ChatMessage.timestamp.asc()).all()
+    
+    messages_data = []
+    for msg in messages:
+        sender = User.query.get(msg.sender_id)
+        messages_data.append({
+            'id': msg.id,
+            'sender_id': msg.sender_id,
+            'sender_name': sender.username,
+            'content': msg.content,
+            'timestamp': msg.timestamp.strftime('%Y-%m-%d %H:%M'),
+            'is_seller': (msg.sender_id == Product.query.get(product_id).user_id)
+        })
+    
+    return jsonify(messages_data)
+2. تعديلات في واجهة الشات (product.html أو chat.html):
+أ. واجهة الشات الجديدة:
+html
+<div class="chat-container">
+    <div class="chat-header">
+        <h3>مراسلة البائع</h3>
+    </div>
+    
+    <div class="chat-messages" id="chatMessages">
+        <!-- الرسائل ستظهر هنا عبر الجافاسكريبت -->
+    </div>
+    
+    <div class="chat-input">
+        <input type="hidden" id="productId" value="{{ product.id }}">
+        <input type="hidden" id="sellerId" value="{{ product.user_id }}">
+        
+        <textarea id="messageContent" placeholder="اكتب رسالتك هنا..."></textarea>
+        <button id="sendMessageBtn">إرسال</button>
+    </div>
+</div>
+ب. جافاسكريبت لإدارة الشات:
+javascript
+document.addEventListener('DOMContentLoaded', function() {
+    const productId = document.getElementById('productId').value;
+    const sellerId = document.getElementById('sellerId').value;
+    const currentUserId = {{ current_user.id }};
+    
+    // استرجاع الرسائل
+    function loadMessages() {
+        fetch(`/get_messages/${productId}`)
+            .then(response => response.json())
+            .then(messages => {
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = '';
+                
+                messages.forEach(msg => {
+                    const isCurrentUser = (msg.sender_id === currentUserId);
+                    const isSeller = msg.is_seller;
+                    
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `message ${isCurrentUser ? 'sent' : 'received'}`;
+                    
+                    const bubble = document.createElement('div');
+                    bubble.className = `message-bubble ${isSeller ? 'seller' : 'buyer'}`;
+                    bubble.innerHTML = `
+                        <div class="message-sender">${msg.sender_name}</div>
+                        <div class="message-content">${msg.content}</div>
+                        <div class="message-time">${msg.timestamp}</div>
+                    `;
+                    
+                    messageDiv.appendChild(bubble);
+                    chatMessages.appendChild(messageDiv);
+                });
+                
+                // التمرير لآخر رسالة
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            });
+    }
+    
+    // إرسال رسالة جديدة
+    document.getElementById('sendMessageBtn').addEventListener('click', function() {
+        const content = document.getElementById('messageContent').value;
+        
+        if (content.trim() === '') return;
+        
+        const formData = new FormData();
+        formData.append('receiver_id', sellerId);
+        formData.append('product_id', productId);
+        formData.append('content', content);
+        
+        fetch('/send_message', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('messageContent').value = '';
+                loadMessages();
+            }
+        });
+    });
+    
+    // تحميل الرسائل أول مرة وتحديث دوري
+    loadMessages();
+    setInterval(loadMessages, 5000); // تحديث كل 5 ثواني
+});
+3. أنماط CSS للشات:
+css
+.chat-container {
+    background-color: #1e293b;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.chat-header {
+    border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+
+.chat-messages {
+    height: 300px;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.chat-input {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.chat-input textarea {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    color: var(--text-light);
+    resize: none;
+    height: 80px;
+}
+
+.chat-input button {
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0 20px;
+    cursor: pointer;
+}
+
+.message {
+    display: flex;
+    max-width: 80%;
+}
+
+.message.sent {
+    align-self: flex-end;
+}
+
+.message.received {
+    align-self: flex-start;
+}
+
+.message-bubble {
+    padding: 12px 15px;
+    border-radius: 18px;
+    position: relative;
+}
+
+.message-bubble.buyer {
+    background-color: #f44336; /* أحمر للمشتري */
+    border-bottom-right-radius: 0;
+}
+
+.message-bubble.seller {
+    background-color: #4CAF50; /* أخضر للبائع */
+    border-bottom-left-radius: 0;
+}
+
+.message-sender {
+    font-weight: bold;
+    font-size: 0.85rem;
+    margin-bottom: 5px;
+}
+
+.message-content {
+    font-size: 1rem;
+    line-height: 1.4;
+}
+
+.message-time {
+    font-size: 0.75rem;
+    opacity: 0.8;
+    text-align: right;
+    margin-top: 5px;
+}
+4. تعديلات إضافية:
+أ. عرض زر "مراسلة البائع" فقط إذا لم يكن المستخدم هو البائع:
+html
+{% if current_user.id != product.user_id %}
+<button class="btn-contact-seller" id="openChatBtn">
+    <i class="fas fa-comments"></i>
+    مراسلة البائع
+</button>
+{% endif %}
+ب. جافاسكريبت لفتح الشات:
+javascript
+document.getElementById('openChatBtn').addEventListener('click', function() {
+    document.querySelector('.chat-container').style.display = 'block';
+});
+شرح التعديلات:
+نظام الإرسال والاستقبال:
+
+أضفنا نقطتي نهاية (endpoints) في الباك إند للإرسال والاسترجاع
+
+كل رسالة تخزن مع: المرسل، المستقبل، المنتج، المحتوى، الطابع الزمني
+
+تمييز الرسائل بالألوان:
+
+المشتري: فقاعات حمراء (#f44336)
+
+البائع: فقاعات خضراء (#4CAF50)
+
+تمييز اسم المرسل بشكل واضح
+
+تجربة مستخدم محسنة:
+
+تصميم فقاعات رسائل مشابه لواتساب
+
+رسائل المشتري على اليمين (للواجهة العربية)
+
+رسائل البائع على اليسار
+
+تحديث تلقائي للرسائل كل 5 ثواني
+
+تمرير تلقائي لأحدث رسالة
+
+التخزين في قاعدة البيانات:
+
+استخدام جدول chat_messages كما هو محدد
+
+حفظ جميع البيانات الضرورية للرسائل
+
+التحكم في الوصول:
+
+إظهار خيار المراسلة فقط للمستخدمين غير البائعين
+
+تأمين نقاط النهاية بحيث لا يمكن الوصول إلا للمستخدمين المسجلين
+
+هذه التعديلات تحل مشاكل نظام الرسائل السابق مع الحفاظ على البنية الحالية، وتوفر تجربة مستخدم سلسة وآمنة لكل من البائعين والمشترين.
+

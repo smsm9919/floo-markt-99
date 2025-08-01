@@ -1,0 +1,804 @@
+{% extends "base.html" %}
+
+{% block title %}دردشة - {{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Chat Header -->
+            <div class="chat-header">
+                <div class="d-flex align-items-center mb-3">
+                    <a href="{{ url_for('product_details', product_id=product.id) }}" class="btn btn-outline-secondary me-3">
+                        <i class="fas fa-arrow-right"></i> العودة للمنتج
+                    </a>
+                    <div>
+                        <h4 class="mb-1">{{ product.name }}</h4>
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-comments"></i> محادثة مع 
+                            {% if current_user.id == product.user_id %}
+                                المشترين
+                            {% else %}
+                                {{ product.user.fullname }}
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Container -->
+            <div class="chat-container">
+                <div id="chatMessages" class="chat-messages">
+                    <!-- الرسائل ستظهر هنا عبر الجافاسكريبت -->
+                </div>
+
+                <!-- Chat Input -->
+                {% if current_user.is_authenticated %}
+                <div class="chat-input">
+                    <input type="hidden" id="productId" value="{{ product.id }}">
+                    <input type="hidden" id="sellerId" value="{{ product.user_id }}">
+                    
+                    <textarea id="messageContent" placeholder="اكتب رسالتك هنا..."></textarea>
+                    <button id="sendMessageBtn">إرسال</button>
+                </div>
+                {% else %}
+                <div class="chat-input-area">
+                    <div class="alert alert-warning text-center">
+                        <i class="fas fa-lock"></i> يجب تسجيل الدخول لإرسال الرسائل
+                        <a href="{{ url_for('login') }}" class="btn btn-primary ms-2">تسجيل الدخول</a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.chat-container {
+    background-color: #1e293b;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 30px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.chat-header {
+    border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+
+.chat-messages {
+    height: 300px;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.chat-input {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.chat-input textarea {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    color: #fff;
+    resize: none;
+    height: 80px;
+    font-family: inherit;
+}
+
+.chat-input button {
+    background: linear-gradient(135deg, #3b82f6, #10b981);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0 20px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.chat-input button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.message {
+    display: flex;
+    max-width: 80%;
+}
+
+.message.sent {
+    align-self: flex-end;
+}
+
+.message.received {
+    align-self: flex-start;
+}
+
+.message-bubble {
+    padding: 12px 15px;
+    border-radius: 18px;
+    position: relative;
+}
+
+.message-bubble.buyer {
+    background-color: #e6ffec; /* خلفية خضراء فاتحة للمشتري */
+    border: 1px solid #25a352;
+    color: #1a4d2e;
+    border-bottom-right-radius: 4px;
+}
+
+.message-bubble.seller {
+    background-color: #ffe6e6; /* خلفية حمراء فاتحة للبائع */
+    border: 1px solid #e02f2f;
+    color: #8b0000;
+    border-bottom-left-radius: 4px;
+}
+
+.message-sender {
+    font-weight: bold;
+    font-size: 0.85rem;
+    margin-bottom: 5px;
+}
+
+.message-content {
+    font-size: 1rem;
+    line-height: 1.4;
+}
+
+.message-time {
+    font-size: 0.75rem;
+    opacity: 0.8;
+    text-align: right;
+    margin-top: 5px;
+}
+
+.no-messages {
+    text-align: center;
+    color: #6c757d;
+    margin: 50px 0;
+}
+
+.chat-input-area {
+    padding: 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productId = document.getElementById('productId').value;
+    const sellerId = document.getElementById('sellerId').value;
+    const currentUserId = {% if current_user.is_authenticated %}{{ current_user.id }}{% else %}null{% endif %};
+    
+    // استرجاع الرسائل
+    function loadMessages() {
+        fetch(`/get_messages/${productId}`)
+            .then(response => response.json())
+            .then(messages => {
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = '';
+                
+                if (!messages || messages.length === 0) {
+                    chatMessages.innerHTML = '<div class="no-messages"><i class="fas fa-comments"></i><br>لا توجد رسائل بعد<br><small>ابدأ المحادثة!</small></div>';
+                    return;
+                }
+                
+                messages.forEach(msg => {
+                    const isCurrentUser = (msg.sender_id === currentUserId);
+                    const isSeller = msg.is_seller;
+                    
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `message ${isCurrentUser ? 'sent' : 'received'}`;
+                    
+                    const bubble = document.createElement('div');
+                    bubble.className = `message-bubble ${isSeller ? 'seller' : 'buyer'}`;
+                    bubble.innerHTML = `
+                        <div class="message-sender">${escapeHtml(msg.sender_name)}</div>
+                        <div class="message-content">${escapeHtml(msg.content)}</div>
+                        <div class="message-time">${msg.timestamp}</div>
+                    `;
+                    
+                    messageDiv.appendChild(bubble);
+                    chatMessages.appendChild(messageDiv);
+                });
+                
+                // التمرير لآخر رسالة
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            })
+            .catch(error => {
+                console.error('Error loading messages:', error);
+            });
+    }
+    
+    // إرسال رسالة جديدة
+    const sendButton = document.getElementById('sendMessageBtn');
+    if (sendButton) {
+        sendButton.addEventListener('click', function() {
+            const content = document.getElementById('messageContent').value;
+            
+            if (content.trim() === '') return;
+            
+            const formData = new FormData();
+            formData.append('receiver_id', sellerId);
+            formData.append('product_id', productId);
+            formData.append('content', content);
+            
+            fetch('/send_message', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('messageContent').value = '';
+                    loadMessages();
+                }
+            })
+            .catch(error => {
+                console.error('Error sending message:', error);
+            });
+        });
+    }
+    
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+    
+    // تحميل الرسائل أول مرة وتحديث دوري
+    loadMessages();
+    setInterval(loadMessages, 5000); // تحديث كل 5 ثواني
+});
+</script>
+{% endblock %}
+    color: #666;
+    padding: 50px 20px;
+}
+
+.message {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: flex-start;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.message.seller {
+    justify-content: flex-end;
+}
+
+.message.buyer {
+    justify-content: flex-start;
+}
+
+.message-bubble {
+    max-width: 70%;
+    padding: 12px 18px;
+    border-radius: 20px;
+    word-wrap: break-word;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.message.buyer .message-bubble {
+    background: #d4f9d4;
+    color: #333;
+    margin-left: 15px;
+    border-bottom-right-radius: 5px;
+    border: 1px solid #c3e6c3;
+}
+
+.message.seller .message-bubble {
+    background: #ffd6d6;
+    color: #333;
+    margin-right: 15px;
+    border-bottom-left-radius: 5px;
+    border: 1px solid #ffb3b3;
+}
+
+.message-text {
+    font-size: 15px;
+    line-height: 1.4;
+    margin-bottom: 5px;
+}
+
+.message-time {
+    font-size: 11px;
+    opacity: 0.8;
+    text-align: left;
+}
+
+.message.buyer .message-time {
+    text-align: right;
+}
+
+.chat-input-area {
+    padding: 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+
+.chat-input-area input {
+    direction: rtl;
+    text-align: right;
+    border-radius: 25px;
+    padding: 12px 20px;
+    border: 1px solid #ced4da;
+}
+
+.chat-input-area button {
+    border-radius: 25px;
+    padding: 12px 25px;
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.chat-input-area button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+}
+
+.no-messages {
+    text-align: center;
+    padding: 80px 20px;
+    color: #666;
+}
+
+.no-messages i {
+    font-size: 48px;
+    margin-bottom: 20px;
+    color: #dee2e6;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-header {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    padding: 20px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+}
+
+.chat-header h4 {
+    color: white;
+}
+
+.chat-header .text-muted {
+    color: rgba(255,255,255,0.8) !important;
+}
+
+.chat-header .btn-outline-secondary {
+    color: white;
+    border-color: white;
+}
+
+.chat-header .btn-outline-secondary:hover {
+    background-color: white;
+    color: #007bff;
+}
+
+/* RTL Support */
+.message-bubble::before {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-style: solid;
+}
+
+.message.buyer .message-bubble::before {
+    bottom: 0;
+    right: -8px;
+    border-width: 8px 0 0 8px;
+    border-color: transparent transparent transparent #d4f9d4;
+}
+
+.message.seller .message-bubble::before {
+    bottom: 0;
+    left: -8px;
+    border-width: 8px 8px 0 0;
+    border-color: transparent #ffd6d6 transparent transparent;
+}
+</style>
+
+<script>
+let currentUser = {{ current_user.id }};
+let productId = {{ product.id }};
+let sellerId = {{ product.user_id }};
+let chatRefreshInterval;
+
+// Initialize chat on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadChatHistory();
+    setupChatRefresh();
+    setupChatForm();
+});
+
+function loadChatHistory() {
+    fetch(`/api/chat/history?product_id=${productId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayMessages(data.messages);
+            } else {
+                showError('فشل في تحميل الرسائل');
+            }
+        })
+        .catch(error => {
+            console.error('Chat history error:', error);
+            showError('خطأ في الاتصال');
+        });
+}
+
+function displayMessages(messages) {
+    const chatContainer = document.getElementById('chatMessages');
+    
+    if (messages.length === 0) {
+        chatContainer.innerHTML = `
+            <div class="no-messages">
+                <i class="fas fa-comments"></i>
+                <p>لا توجد رسائل بعد. ابدأ المحادثة!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let messagesHtml = '';
+    messages.forEach(message => {
+        const isOwn = message.sender_id == currentUser;
+        const messageClass = isOwn ? 'buyer' : 'seller';
+        const senderName = isOwn ? 'أنت' : message.sender_name;
+        
+        messagesHtml += `
+            <div class="message ${messageClass}">
+                <div class="message-bubble">
+                    <div class="message-text">${escapeHtml(message.message)}</div>
+                    <div class="message-time">${senderName} - ${message.timestamp}</div>
+                </div>
+            </div>
+        `;
+    });
+    
+    chatContainer.innerHTML = messagesHtml;
+    scrollToBottom();
+}
+
+function setupChatForm() {
+    const form = document.getElementById('chatForm');
+    const input = document.getElementById('messageInput');
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const message = input.value.trim();
+        if (!message) return;
+        
+        // Disable input while sending
+        input.disabled = true;
+        
+        const formData = new FormData();
+        formData.append('product_id', productId);
+        formData.append('message', message);
+        
+        fetch('/api/chat/send', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                input.value = '';
+                loadChatHistory(); // Reload to show new message
+            } else {
+                showError(data.message || 'فشل في إرسال الرسالة');
+            }
+        })
+        .catch(error => {
+            console.error('Send message error:', error);
+            showError('خطأ في الاتصال');
+        })
+        .finally(() => {
+            input.disabled = false;
+            input.focus();
+        });
+    });
+}
+
+function setupChatRefresh() {
+    // Refresh chat every 5 seconds
+    chatRefreshInterval = setInterval(loadChatHistory, 5000);
+}
+
+function scrollToBottom() {
+    const chatContainer = document.getElementById('chatMessages');
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function showError(message) {
+    const chatContainer = document.getElementById('chatMessages');
+    chatContainer.innerHTML = `
+        <div class="alert alert-danger text-center">
+            <i class="fas fa-exclamation-triangle"></i> ${message}
+        </div>
+    `;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Clean up on page unload
+window.addEventListener('beforeunload', function() {
+    if (chatRefreshInterval) {
+        clearInterval(chatRefreshInterval);
+    }
+});
+</script>
+
+{% endblock %}
+    border-color: transparent #ffd6d6 transparent transparent;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productId = {{ product.id }};
+    const currentUserId = {{ current_user.id }};
+    const sellerId = {{ product.user_id }};
+    const isUserSeller = currentUserId === sellerId;
+    
+    let lastMessageId = 0;
+    let refreshInterval;
+    
+    // Initialize chat
+    loadChatHistory();
+    startAutoRefresh();
+    
+    // Form submission
+    document.getElementById('chatForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        sendMessage();
+    });
+    
+    // Enter key to send
+    document.getElementById('messageInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    function loadChatHistory() {
+        fetch(`/api/chat/history?product_id=${productId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayMessages(data.messages);
+                    if (data.messages.length > 0) {
+                        lastMessageId = Math.max(...data.messages.map(m => m.id));
+                    }
+                } else {
+                    showError('فشل في تحميل الرسائل');
+                }
+            })
+            .catch(error => {
+                console.error('Chat history error:', error);
+                showError('خطأ في الاتصال بالخادم');
+            });
+    }
+    
+    function displayMessages(messages) {
+        const chatMessages = document.getElementById('chatMessages');
+        
+        if (messages.length === 0) {
+            chatMessages.innerHTML = `
+                <div class="no-messages">
+                    <i class="fas fa-comments"></i>
+                    <h5>لا توجد رسائل بعد</h5>
+                    <p>ابدأ المحادثة بكتابة رسالتك الأولى</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let messagesHtml = '';
+        messages.forEach(message => {
+            const messageClass = message.sender_type;
+            const senderLabel = message.sender_type === 'seller' ? 'البائع' : 'المشتري';
+            
+            messagesHtml += `
+                <div class="message ${messageClass}">
+                    <div class="message-bubble">
+                        <div class="message-text">${escapeHtml(message.message)}</div>
+                        <div class="message-time">${senderLabel} • ${message.timestamp}</div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        chatMessages.innerHTML = messagesHtml;
+        scrollToBottom();
+    }
+    
+    function sendMessage() {
+        const messageInput = document.getElementById('messageInput');
+        const submitButton = document.querySelector('#chatForm button[type="submit"]');
+        const message = messageInput.value.trim();
+        
+        if (!message) return;
+        
+        // Disable form during send
+        messageInput.disabled = true;
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+        
+        const payload = {
+            product_id: productId,
+            message: message
+        };
+        
+        // If user is seller replying, we need to get the buyer_id from context
+        // For simplicity, we'll let the backend determine the receiver
+        
+        fetch('/api/chat/send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                messageInput.value = '';
+                addNewMessage(data.chat_message);
+                scrollToBottom();
+            } else {
+                alert('فشل في إرسال الرسالة: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Send message error:', error);
+            alert('حدث خطأ في إرسال الرسالة');
+        })
+        .finally(() => {
+            // Re-enable form
+            messageInput.disabled = false;
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال';
+            messageInput.focus();
+        });
+    }
+    
+    function addNewMessage(message) {
+        const chatMessages = document.getElementById('chatMessages');
+        
+        // Remove no-messages placeholder if exists
+        const noMessages = chatMessages.querySelector('.no-messages');
+        if (noMessages) {
+            noMessages.remove();
+        }
+        
+        const messageClass = message.is_own_message ? 
+            (isUserSeller ? 'seller' : 'buyer') : 
+            (isUserSeller ? 'buyer' : 'seller');
+        
+        const messageHtml = `
+            <div class="message ${messageClass}">
+                <div class="message-bubble">
+                    <div class="message-text">${escapeHtml(message.message)}</div>
+                    <div class="message-time">${message.timestamp}</div>
+                </div>
+            </div>
+        `;
+        
+        chatMessages.insertAdjacentHTML('beforeend', messageHtml);
+        lastMessageId = message.id;
+    }
+    
+    function startAutoRefresh() {
+        refreshInterval = setInterval(() => {
+            checkForNewMessages();
+        }, 5000); // Refresh every 5 seconds
+    }
+    
+    function checkForNewMessages() {
+        fetch(`/api/chat/history?product_id=${productId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.messages.length > 0) {
+                    const latestMessageId = Math.max(...data.messages.map(m => m.id));
+                    if (latestMessageId > lastMessageId) {
+                        // New messages available
+                        const newMessages = data.messages.filter(m => m.id > lastMessageId);
+                        newMessages.forEach(message => {
+                            const messageClass = message.is_own_message ? 
+                                (isUserSeller ? 'seller' : 'buyer') : 
+                                (isUserSeller ? 'buyer' : 'seller');
+                            
+                            addNewMessageToChat(message, messageClass);
+                        });
+                        lastMessageId = latestMessageId;
+                        scrollToBottom();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Auto-refresh error:', error);
+            });
+    }
+    
+    function addNewMessageToChat(message, messageClass) {
+        const chatMessages = document.getElementById('chatMessages');
+        
+        // Remove no-messages placeholder if exists
+        const noMessages = chatMessages.querySelector('.no-messages');
+        if (noMessages) {
+            noMessages.remove();
+        }
+        
+        const messageHtml = `
+            <div class="message ${messageClass}">
+                <div class="message-bubble">
+                    <div class="message-text">${escapeHtml(message.message)}</div>
+                    <div class="message-time">${message.timestamp}</div>
+                </div>
+            </div>
+        `;
+        
+        chatMessages.insertAdjacentHTML('beforeend', messageHtml);
+    }
+    
+    function scrollToBottom() {
+        const chatMessages = document.getElementById('chatMessages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function showError(message) {
+        const chatMessages = document.getElementById('chatMessages');
+        chatMessages.innerHTML = `
+            <div class="alert alert-danger text-center">
+                <i class="fas fa-exclamation-triangle"></i> ${message}
+            </div>
+        `;
+    }
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+        }
+    });
+});
+</script>
+{% endblock %}

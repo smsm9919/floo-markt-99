@@ -1,0 +1,502 @@
+1. التعديلات في HTML (إضافة قسم الرسائل)
+html
+<!-- في القائمة الرئيسية -->
+<li>
+    <a href="#" class="nav-link" data-section="messages">
+        📩 الرسائل
+        <span class="notification-badge">0</span>
+    </a>
+</li>
+
+<!-- قسم الرسائل -->
+<section id="messages" class="hidden">
+    <div class="section-header">
+        <h2 class="section-title">الرسائل</h2>
+        <button class="btn-cyan" id="newMessageBtn">
+            <i class="fas fa-plus"></i> رسالة جديدة
+        </button>
+    </div>
+    
+    <div class="messages-container">
+        <div class="conversations-list">
+            <!-- ستتم إضافة المحادثات هنا جافاسكريبت -->
+        </div>
+        
+        <div class="chat-container hidden" id="chatContainer">
+            <div class="chat-header">
+                <h3 id="chatRecipient">المحادثة مع: أحمد محمد</h3>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <!-- ستتم إضافة الرسائل هنا جافاسكريبت -->
+            </div>
+            
+            <div class="chat-input">
+                <input type="text" id="messageInput" placeholder="اكتب رسالتك هنا...">
+                <button class="btn-send" id="sendMessageBtn">
+                    <i class="fas fa-paper-plane"></i> إرسال
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+2. التعديلات في CSS (أنماط المراسلة)
+css
+/* الرسائل */
+.messages-container {
+    display: flex;
+    height: 70vh;
+    background: var(--card-bg);
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.conversations-list {
+    width: 300px;
+    border-right: 1px solid rgba(148, 163, 184, 0.1);
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+.conversation {
+    display: flex;
+    padding: 1rem;
+    cursor: pointer;
+    transition: var(--transition);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    position: relative;
+}
+
+.conversation:hover {
+    background: rgba(14, 165, 233, 0.05);
+}
+
+.conversation.active {
+    background: rgba(14, 165, 233, 0.1);
+}
+
+.conversation-avatar {
+    width: 40px;
+    height: 40px;
+    background: var(--secondary-dark);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+    font-size: 1.2rem;
+}
+
+.conversation-info {
+    flex: 1;
+}
+
+.conversation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.conversation-name {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.conversation-time {
+    font-size: 0.8rem;
+    color: var(--text-gray);
+}
+
+.last-message {
+    font-size: 0.9rem;
+    color: var(--text-gray);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.unread-count {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: red;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+}
+
+.chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-header {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.chat-messages {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.message {
+    max-width: 70%;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.message.seller {
+    background: rgba(16, 185, 129, 0.1);
+    align-self: flex-start;
+    border-bottom-left-radius: 0;
+}
+
+.message.buyer {
+    background: rgba(239, 68, 68, 0.1);
+    align-self: flex-end;
+    border-bottom-right-radius: 0;
+}
+
+.message-sender {
+    font-weight: bold;
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.message-content {
+    font-size: 1rem;
+}
+
+.message-time {
+    font-size: 0.7rem;
+    color: var(--text-gray);
+    text-align: right;
+    margin-top: 0.25rem;
+}
+
+.chat-input {
+    display: flex;
+    padding: 1rem;
+    border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.chat-input input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    background: rgba(15, 23, 42, 0.5);
+    color: var(--text-light);
+    font-size: 1rem;
+}
+
+.btn-send {
+    background: var(--accent-blue);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0 1.5rem;
+    margin-right: 0.5rem;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-send:hover {
+    background: #0d8ec9;
+}
+
+.notification-badge {
+    background: red;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    margin-right: 5px;
+    position: relative;
+    top: -8px;
+    left: -5px;
+}
+3. التعديلات في JavaScript (منطق المراسلة)
+javascript
+// نظام المراسلة
+const conversations = [
+    {
+        id: 1,
+        productId: 101,
+        productName: "ساعة ذكية - Apple Watch Series 5",
+        buyer: { id: 201, name: "أحمد محمد" },
+        seller: { id: 301, name: "محمد علي" },
+        messages: [
+            { id: 1001, sender: "buyer", content: "مرحباً، هل هذا المنتج متوفر؟", time: "10:15 ص", read: true },
+            { id: 1002, sender: "seller", content: "نعم، لا يزال متوفراً", time: "10:20 ص", read: true },
+            { id: 1003, sender: "buyer", content: "هل يمكنني المعاينة؟", time: "10:25 ص", read: false }
+        ]
+    },
+    {
+        id: 2,
+        productId: 102,
+        productName: "سماعات لاسلكية - Sony WH-1000XM4",
+        buyer: { id: 202, name: "ليلى أحمد" },
+        seller: { id: 302, name: "سارة محمود" },
+        messages: [
+            { id: 2001, sender: "buyer", content: "هل السعر قابل للتفاوض؟", time: "أمس 09:30 ص", read: true },
+            { id: 2002, sender: "seller", content: "نعم، يمكن التفاوض قليلاً", time: "أمس 10:45 ص", read: true }
+        ]
+    }
+];
+
+let unreadCount = 0;
+let currentConversation = null;
+
+// تحديث شارة الإشعارات
+function updateNotificationBadge() {
+    unreadCount = conversations.reduce((total, conv) => {
+        return total + conv.messages.filter(msg => !msg.read && msg.sender === 'seller').length;
+    }, 0);
+    
+    const badge = document.querySelector('.notification-badge');
+    badge.textContent = unreadCount;
+    badge.style.display = unreadCount > 0 ? 'inline-flex' : 'none';
+    
+    // إشعار خارج الصفحة
+    const messageIcon = document.querySelector('.nav-link[data-section="messages"]');
+    if (unreadCount > 0 && !document.getElementById('messages').classList.contains('active')) {
+        messageIcon.classList.add('has-notification');
+    } else {
+        messageIcon.classList.remove('has-notification');
+    }
+}
+
+// عرض قائمة المحادثات
+function renderConversations() {
+    const container = document.querySelector('.conversations-list');
+    container.innerHTML = '';
+    
+    conversations.forEach(conv => {
+        const unread = conv.messages.filter(msg => !msg.read && msg.sender === 'seller').length;
+        const lastMessage = conv.messages[conv.messages.length - 1];
+        
+        const conversationEl = document.createElement('div');
+        conversationEl.classList.add('conversation');
+        if (currentConversation?.id === conv.id) conversationEl.classList.add('active');
+        
+        conversationEl.innerHTML = `
+            <div class="conversation-avatar">${conv.buyer.name.charAt(0)}</div>
+            <div class="conversation-info">
+                <div class="conversation-header">
+                    <div class="conversation-name">${conv.buyer.name}</div>
+                    <div class="conversation-time">${lastMessage.time}</div>
+                </div>
+                <div class="last-message">${lastMessage.content}</div>
+            </div>
+            ${unread > 0 ? `<div class="unread-count">${unread}</div>` : ''}
+        `;
+        
+        conversationEl.addEventListener('click', () => {
+            currentConversation = conv;
+            renderChat();
+            document.querySelector('.chat-container').classList.remove('hidden');
+            document.querySelectorAll('.conversation').forEach(c => c.classList.remove('active'));
+            conversationEl.classList.add('active');
+            
+            // وضع علامة مقروء على الرسائل
+            conv.messages.forEach(msg => {
+                if (msg.sender === 'seller') msg.read = true;
+            });
+            updateNotificationBadge();
+        });
+        
+        container.appendChild(conversationEl);
+    });
+}
+
+// عرض محتوى المحادثة
+function renderChat() {
+    if (!currentConversation) return;
+    
+    const container = document.getElementById('chatMessages');
+    const recipientEl = document.getElementById('chatRecipient');
+    
+    container.innerHTML = '';
+    recipientEl.textContent = `المحادثة مع: ${currentConversation.buyer.name}`;
+    
+    currentConversation.messages.forEach(msg => {
+        const messageEl = document.createElement('div');
+        messageEl.classList.add('message');
+        messageEl.classList.add(msg.sender === 'buyer' ? 'buyer' : 'seller');
+        
+        messageEl.innerHTML = `
+            <div class="message-sender">${msg.sender === 'buyer' ? currentConversation.buyer.name : 'أنت (البائع)'}</div>
+            <div class="message-content">${msg.content}</div>
+            <div class="message-time">${msg.time}</div>
+        `;
+        
+        container.appendChild(messageEl);
+    });
+    
+    // التمرير إلى آخر رسالة
+    container.scrollTop = container.scrollHeight;
+}
+
+// إرسال رسالة جديدة
+function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    
+    if (!message || !currentConversation) return;
+    
+    const now = new Date();
+    const time = now.getHours() + ':' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
+    
+    const newMessage = {
+        id: Date.now(),
+        sender: 'seller',
+        content: message,
+        time: time,
+        read: false
+    };
+    
+    currentConversation.messages.push(newMessage);
+    renderChat();
+    input.value = '';
+    
+    // تحديث الإشعارات للطرف الآخر
+    updateNotificationBadge();
+    
+    // إشعار وهمي للطرف الآخر (في تطبيق حقيقي سيتم إرسالها للخادم)
+    setTimeout(() => {
+        const replyMessage = {
+            id: Date.now() + 1,
+            sender: 'buyer',
+            content: 'شكراً على ردك! سأتواصل معك قريباً',
+            time: new Date().getHours() + ':' + (new Date().getMinutes() < 10 ? '0' : '') + new Date().getMinutes(),
+            read: false
+        };
+        
+        currentConversation.messages.push(replyMessage);
+        renderChat();
+        updateNotificationBadge();
+    }, 3000);
+}
+
+// رسالة جديدة
+document.getElementById('newMessageBtn')?.addEventListener('click', () => {
+    // في تطبيق حقيقي، سيكون هناك نموذج لاختيار المشتري والمنتج
+    alert('هذه الميزة قيد التطوير. في التطبيق الكامل ستتمكن من بدء محادثة جديدة.');
+});
+
+// إرسال الرسالة
+document.getElementById('sendMessageBtn')?.addEventListener('click', sendMessage);
+
+// إرسال بالضغط على Enter
+document.getElementById('messageInput')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+});
+
+// تحديث واجهة الرسائل عند التبديل
+document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', function() {
+        if (this.getAttribute('data-section') === 'messages') {
+            setTimeout(() => {
+                renderConversations();
+                updateNotificationBadge();
+            }, 100);
+        }
+    });
+});
+
+// تهيئة الإشعارات
+updateNotificationBadge();
+
+// إضافة أنماط للإشعار خارج الصفحة
+const style = document.createElement('style');
+style.innerHTML = `
+    .nav-link.has-notification::after {
+        content: '🔴';
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        font-size: 8px;
+    }
+`;
+document.head.appendChild(style);
+4. التعديلات في CSS (إشعار خارج الصفحة)
+css
+/* إضافة للأنماط الحالية */
+.nav-link {
+    position: relative;
+    display: inline-block;
+}
+
+.notification-badge {
+    /* ... الأنماط السابقة ... */
+    top: -8px;
+    left: -5px;
+}
+
+/* إشعار خارج الصفحة */
+.nav-link.has-notification::after {
+    content: '🔴';
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    font-size: 8px;
+}
+ميزات النظام المضافة:
+تمييز الرسائل بالألوان:
+
+رسائل المشتري: باللون الأحمر (خلفية فاتحة)
+
+رسائل البائع: باللون الأخضر (خلفية فاتحة)
+
+إشعارات الرسائل الجديدة:
+
+عداد الرسائل غير المقروءة على زر الرسائل
+
+نقطة حمراء (🔴) تظهر عند وجود رسائل غير مقروءة خارج صفحة الرسائل
+
+واجهة واضحة للمحادثات:
+
+قائمة المحادثات على اليسار
+
+منطقة المحادثة على اليمين
+
+تمييز واضح للمرسل والمستلم
+
+ميزات إضافية:
+
+زر لبدء محادثة جديدة
+
+إمكانية إرسال الرسائل بالضغط على Enter
+
+رد تلقائي وهمي للاختبار
+
+التمرير التلقائي لأحدث رسالة
+
+التنظيم والتنسيق:
+
+توقيت الرسائل
+
+صورة رمزية للمستخدم
+
+عرض آخر رسالة في قائمة المحادثات
+
+تمييز المحادثة النشطة

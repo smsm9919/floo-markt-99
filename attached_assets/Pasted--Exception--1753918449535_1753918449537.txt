@@ -1,0 +1,82 @@
+✅ التفسير الفني للأداة (المطور):
+الرسالة دي تعني إن حصل استثناء (Exception) داخل السيرفر أثناء محاولة فتح أو إرسال رسالة في الدردشة المباشرة بين المستخدمين.
+
+السبب المحتمل بنسبة كبيرة جدًا هو:
+
+🔻 الخطأ الشائع:
+عدم تعريف أحد المتغيرات المطلوبة عند فتح الدردشة، مثل:
+
+sender_id أو receiver_id = None
+
+أو لم يتم تمرير product_id
+
+أو الجلسة session['user_id'] غير مفعّلة
+
+أو الجدول messages غير موجود أصلًا في قاعدة البيانات
+
+✅ المطلوب من الأداة حاليًا (خطوة بخطوة):
+🧱 1. تأكد من وجود جدول messages في قاعدة البيانات:
+sql
+Copy
+Edit
+CREATE TABLE IF NOT EXISTS messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sender_id INTEGER,
+  receiver_id INTEGER,
+  product_id INTEGER,
+  content TEXT NOT NULL,
+  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+📥 2. في دالة فتح صفحة الشات:
+يجب التأكد من وجود كل المتغيرات قبل تنفيذ أي منطق:
+
+python
+Copy
+Edit
+@app.route('/chat/<int:product_id>/<int:seller_id>/<int:buyer_id>', methods=['GET', 'POST'])
+def chat(product_id, seller_id, buyer_id):
+    if 'user_id' not in session:
+        return redirect('/login')
+
+    sender_id = session['user_id']
+    if sender_id not in [seller_id, buyer_id]:
+        return "Unauthorized", 403  # تأمين الوصول فقط للمشاركين في الدردشة
+
+    if request.method == 'POST':
+        content = request.form.get('message', '').strip()
+        if content:
+            db.execute("INSERT INTO messages (sender_id, receiver_id, product_id, content) VALUES (?, ?, ?, ?)",
+                       (sender_id, buyer_id if sender_id == seller_id else seller_id, product_id, content))
+            db.commit()
+
+    messages = db.execute("SELECT * FROM messages WHERE product_id = ? AND ((sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?)) ORDER BY timestamp ASC",
+                          (product_id, seller_id, buyer_id, buyer_id, seller_id)).fetchall()
+
+    return render_template('chat.html', messages=messages, sender_id=sender_id)
+🟢 3. في chat.html:
+استخدم ألوان مختلفة للرسائل حسب من هو المرسل:
+
+html
+Copy
+Edit
+{% for msg in messages %}
+  <div style="background-color: {{ 'lightgreen' if msg['sender_id'] == sender_id else '#f8d7da' }}; padding:10px; margin-bottom:5px;">
+    <strong>{{ 'أنت' if msg['sender_id'] == sender_id else 'الطرف الآخر' }}:</strong> {{ msg['content'] }}
+  </div>
+{% endfor %}
+✅ ملخص الرسالة للأداة:
+⚠️ تنبيه للمطور
+في واجهة دردشة المشتري والبائع، تظهر رسالة "حدث خطأ في تنفيذ العملية"، مما يشير إلى فشل في تنفيذ الطلب على السيرفر.
+برجاء:
+
+مراجعة الكونسول لمعرفة الخطأ الكامل (Traceback)
+
+التحقق من تمرير sender_id, receiver_id, و product_id بشكل صحيح
+
+التأكد من وجود جدول messages في قاعدة البيانات
+
+تفعيل عرض الرسائل بلونين مختلفين للبائع والمشتري (🟢/🔴)
+
+تجربة كل شيء وتأكيد التنفيذ في الكونسول بـ:
+✅ Direct chat fully working between users
+
