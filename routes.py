@@ -1,9 +1,11 @@
 # src/routes.py
-from app import app
+from flask import Blueprint, jsonify
 from extensions import db
-from models import User, Product  # Import models here
+from models import User, Product  # Safe to import here
 
-# Define all your routes and view functions
-@app.route('/')
+main = Blueprint('main', __name__)
+
+@main.route('/')
 def home():
-    # ... implementation
+    users = User.query.all()
+    # ... rest of your route logic

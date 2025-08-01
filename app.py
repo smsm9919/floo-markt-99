@@ -1,24 +1,30 @@
 # src/app.py
 from flask import Flask
-from extensions import db  # Import from extensions
+from extensions import db, migrate
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'your-database-uri'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# Initialize db without models
-db.init_app(app)
-
-# Import models AFTER db initialization
-with app.app_context():
-    # Import all models here
-    from models import User, Category, Product, PriceNegotiation, Message, ChatMessage
+def create_app():
+    app = Flask(__name__)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'your-database-uri'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
-    # Create tables (if needed)
-    db.create_all()
+    # Initialize extensions
+    db.init_app(app)
+    migrate.init_app(app, db)
+    
+    # Import models AFTER db initialization
+    with app.app_context():
+        from . import models  # Import entire models module
+        
+        # Create tables if needed
+        db.create_all()
+    
+    # Import and register blueprints
+    from .routes import main as main_blueprint
+    app.register_blueprint(main_blueprint)
+    
+    return app
 
-# Import routes AFTER models
-from routes import *  # Assuming you have a routes.py file
+app = create_app()
 
 if __name__ == '__main__':
     app.run()
